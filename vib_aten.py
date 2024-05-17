@@ -5,15 +5,17 @@ Ndiv = 100
 Nper = 100
 
 # Valores iniciais para theta e dtheta
-theta0 = np.pi
+theta0 = 0
 dtheta0 = 0
 
 # const
-k = 1 
-m = 1
-csi = 0.3
-F = 10
-omega = .8
+k = 9
+m = 2
+csi = 0.5
+F = 12
+omega = 12
+
+h = 0.01
 
 # Frequência natural amortecida
 wd = np.sqrt(1 - csi**2) * np.sqrt(k/m)
@@ -31,9 +33,6 @@ tf = Nper*periodo
 # Número da divisão de onde Poincaré será tirado
 n_da_divisao = 4
 
-# Passo de tempo
-h = 2*np.pi / (omega * Ndiv)#tf/(Nper*Ndiv)
-
 # cor do gráfico
 cor = "red"
 
@@ -47,7 +46,7 @@ plot_uni = False
 variavel = 4
 
 # Valores que a constante vai assumir (max. de 7 valores)
-valores_da_var = [2 ,4, 6, 8, 10, 12, 14]
+valores_da_var = np.linspace(2, 4, 100) #[2 ,4, 6, 8, 10, 12, 14]
 
 # Título do gráfico
 title = "θ vs t"
@@ -61,13 +60,18 @@ simbolo_da_var = "l"
 
 ################################## Inicio do programa ##################################
 #    Não fuce em nada que você não sabe o que significa! Criar isso foi trabalhoso!    #
-    
+
+minimos_theta = []
+maximos_theta = []
+minimos_dtheta = []
+maximos_dtheta = []
+
 def somarNaLista(lista, valor):
 	return list(map(lambda x: x + valor, lista))
 	
 def restoNaLista(lista, valor):
     return lista
-    return list(map(lambda x: (abs(x)%valor)*x/abs(x), lista))
+    #return list(map(lambda x: (abs(x)%valor)*x/abs(x), lista))
 
 tempos = np.zeros(Ndiv*Nper)
 thetas = np.zeros(Ndiv*Nper)
@@ -76,18 +80,15 @@ dthetas = np.zeros(Ndiv*Nper)
 # Matriz da seção de Poincaré
 poincare = [[], []]
 
-# Matrizpara o espaço de fase
+# Matriz para o espaço de fase
 esp_fas = [[], []]
-
-print(f"h - {h}\nwd - {wd}\ntf - {tf}\ntamanho - {int(tf/h)}")
 
 tempos[0] = 0
 thetas[0] = theta0
 dthetas[0] = dtheta0
 
 def ddt(t, r, c):
-    
-    return c[3]*np.cos(c[4]*t) - c[0]/c[1] * np.sin(r[0]) - 2*c[2]*np.sqrt(c[0]/c[1])*r[1] 
+    return c[3]*np.cos(c[4]*t) - c[0]/c[1] * r[0] - 2*c[2]*np.sqrt(c[0]/c[1])*r[1] 
     
 def dt(t, r, c):
     return r[1]
@@ -100,15 +101,34 @@ def DELTA_rk4(f, t, r, c):
     k3 = f(t + h/2, somarNaLista(r, h/2*k2), c)
     k4 = f(t + h    , somarNaLista(r, h*k3)    , c)
     
-    return h/6*(k1 + 2*k2 + 2*k3 + k4)
+    return (h/6*(k1 + 2*k2 + 2*k3 + k4))
     
+def plotPoincare():
+    plt.scatter(esp_fas[0], esp_fas[1], s=2, color="black")
+    plt.scatter(poincare[0], poincare[1], color="red", marker=",")
+    plt.xlabel("theta [rad]")
+    plt.ylabel("dtheta [rad/s]")
+    plt.xticks(  list(map( lambda x: round(x, 1), [min(esp_fas[0]), max(esp_fas[0]), ( min(esp_fas[0]) + max(esp_fas[0]) )/2, min(esp_fas[0]) - 2, max(esp_fas[0])+2 ] )) )
+    plt.yticks(  list(map( lambda x: round(x, 1), [min(esp_fas[1]), max(esp_fas[1]), ( min(esp_fas[1]) + max(esp_fas[1]) )/2, min(esp_fas[1]) - 2, max(esp_fas[1])+2 ] )) )
+    plt.axis( list(map( lambda x: round(x, 1),  [min(esp_fas[0]) - 2, max(esp_fas[0])+2, min(esp_fas[1]) - 2, max(esp_fas[1])+2 ] )) )
+    plt.title("Espaço de fases e seção de Poincaré")
+    plt.show()    
+
+def plotVib():
+    plt.plot(valores_da_var, maximos_theta) # Plota omega x theta max
+    plt.show()
+
 def main(c, cor):
     global theta0, dtheta0, labelx, labely, titulo, r, Nper, n_da_divisao, poincare, esp_fas
     
+    temposNT= []
+    thetasNotTrans = []
+    dthetasNotTrans = []
+    
     t = 0
     i = 0
-    
-    var = r.copy()
+        
+    var = [r[0], r[1]]
      
     var_old =[0,0]     
      
@@ -125,10 +145,15 @@ def main(c, cor):
           
             var[0] += DELTA_rk4(dt, t, var_old, c)
             var[1] += DELTA_rk4(ddt, t, var_old, c)     	
-            
-            if periodo > (0.8*Nper):
+ 
+          
+            if periodo > (0.9*Nper):
                 esp_fas[0].append(thetas[i])
                 esp_fas[1].append(dthetas[i])
+                
+                temposNT.append(t)
+                thetasNotTrans.append(thetas[i])
+                dthetasNotTrans.append(dthetas[i])
                 
                 if divisao == n_da_divisao:
                     poincare[0].append(thetas[i])
@@ -137,17 +162,17 @@ def main(c, cor):
             t += h
             i+=1
             
-    plt.scatter(tempos, restoNaLista(thetas, np.pi), color=cor, s=2)
+    print(len(temposNT))
+    print(len(thetasNotTrans))
     
-    return tempos, thetas, dthetas
+    return temposNT, thetasNotTrans, dthetasNotTrans
     
 def itera(c):
     global variavel, tf, h, tempos, valores_da_var
     
-    minimos_theta = []
-    maximos_theta = []
-    minimos_dtheta = []
-    maximos_dtheta = []
+    times =[]
+    t = []
+    dt = []
     
     numero_de_iteracoes = len(valores_da_var)
     
@@ -156,39 +181,43 @@ def itera(c):
     graficos = []
     
     while i < numero_de_iteracoes:
+        
         print(f"{i}ª iteração da variável {variavel}: valor de {variavel} = {valores_da_var[i]}")
+        
+            
+        # Passo de tempo
+        # OBS.: Entender melhor o motivo de ser assim
+        h = 2*np.pi / ( valores_da_var[i] * Ndiv)
+        
         c[variavel] = valores_da_var[i]
         
-        tempos, thetas, dthetas = main(c, None)
+        times, t, dt = main(c, None)
 
-        minimos_theta.append(min(thetas))
-        minimos_dtheta.append(min(dthetas))
+        minimos_theta.append(min(t))
+        minimos_dtheta.append(min(dt))
         
-        maximos_theta.append(max(thetas))
-        maximos_dtheta.append(max(dthetas))
+        maximos_theta.append(max(t))
+        maximos_dtheta.append(max(dt))
+        
+        #plt.plot(times, t)
+        #plt.show()
         
         i+=1
     
-    legendas = list(map(lambda y: simbolo_da_var + ' = ' + str(y), valores_da_var))  
-    plt.legend(legendas)
-    plt.xlabel(labelx)
-    plt.ylabel(labely)
-    plt.title(title)
-    plt.xticks(tempos[::int(1/h)])
-    plt.yticks([min(minimos_theta), max(maximos_theta), 0, min(minimos_theta) - 1, max(maximos_theta) + 1])
-    plt.axis([0, None, min(minimos_theta) - 1 , max(maximos_theta) + 1])
-    plt.show()
-    
         
 def plot_unico(c, cor):
-    t, thetas, dthetas= main(c, cor)
+    t, thetasNT, dthetasNT= main(c, cor)
+    
     plt.xlabel(labelx)
     plt.ylabel(labely)
     plt.title(title)
-    plt.xticks(tempos[0::int(1/h)])
+    plt.xticks( list(map( lambda x: round(x, 2), tempos[0:-1:int( (Ndiv*Nper)/6 )] )) )
     plt.yticks([min(thetas), max(thetas), 0, min(thetas) - 1, max(thetas) + 1])
     plt.axis([0, None, min(thetas) - 1 , max(thetas) + 1])
-
+    
+    plt.plot(tempos, thetas, color=cor, linewidth=2)
+    plt.xlabel("s")
+    
     plt.show()    
     
     return
@@ -198,8 +227,7 @@ if plot_uni == True:
     
 if plot_uni == False:
     itera(c)
+    
+    plotVib()
 
-plt.scatter(esp_fas[0], esp_fas[1], s=2, color="black")
-plt.scatter(poincare[0], poincare[1], color="red", marker=",")
-
-plt.show()
+#plotPoincare()
